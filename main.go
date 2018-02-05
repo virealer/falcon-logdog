@@ -182,9 +182,9 @@ func handleKeywords(file config.WatchFile, line string) {
 			log.Debugf("exp:%v match ===> line: %v ", p.Regex.String(), line)
 			value = 1.0
 		}
-
+		key := file.ResultFile.FileName + p.Tag
 		var data config.PushData
-		if v, ok := keywords.Get(p.Exp); ok {
+		if v, ok := keywords.Get(key); ok {
 			d := v.(config.PushData)
 			d.Value += value
 			data = d
@@ -199,7 +199,7 @@ func handleKeywords(file config.WatchFile, line string) {
 			}
 		}
 
-		keywords.Set(p.Exp, data)
+		keywords.Set(key, data)
 
 	}
 }
@@ -244,9 +244,9 @@ func fillData() {
 	for _, v := range c.WatchFiles {
 		for _, p := range v.Keywords {
 
-			//key := v.ResultFile.FileName + p.Tag
+			key := v.ResultFile.FileName + p.Tag
 			//log.Println("_______", key)
-			key := p.Exp
+			// key := p.Exp
 			if _, ok := keywords.Get(key); ok {
 				continue
 			}
