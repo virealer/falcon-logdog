@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"github.com/fsnotify/fsnotify"
 	"github.com/hpcloud/tail"
-	"github.com/sdvdxl/falcon-logdog/config"
 	"github.com/sdvdxl/falcon-logdog/log"
 	"github.com/streamrail/concurrent-map"
 	"io/ioutil"
@@ -15,6 +14,7 @@ import (
 	"runtime"
 	"strings"
 	"time"
+	"./config"
 )
 
 var (
@@ -244,9 +244,9 @@ func fillData() {
 	for _, v := range c.WatchFiles {
 		for _, p := range v.Keywords {
 
-			key := v.ResultFile.FileName + p.Tag
+			//key := v.ResultFile.FileName + p.Tag
 			//log.Println("_______", key)
-
+			key := p.Exp
 			if _, ok := keywords.Get(key); ok {
 				continue
 			}

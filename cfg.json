@@ -1,29 +1,18 @@
 {
   "logLevel": "DEBUG",
-  "metric": "log",
-  "timer": 60,
-  "agent": "http://10.10.128.53:1988/v1/push",
-  "host": "10-10-128-53",
+  "metric": "log.watermark.success",
+  "timer": 30,
+  "agent": "http://127.0.0.1:8999/v1/push",
+  "host": "",
   "files": [
     {
-      "path": "/data/logs/test",
-      "prefix": "aaa",
-      "suffix": ".log",
+      "path": "/home/video/video-process/watermark_service/scheduler/shell",
+      "prefix": "",
+      "suffix": "",
       "keywords": [
         {
-          "exp": "ERROR",
-          "tag": "ERROR"
-        }
-      ]
-    },
-    {
-      "path": "/data/logs/test",
-      "prefix": "bbb",
-      "suffix": ".log",
-      "keywords": [
-        {
-          "exp": "key1",
-          "tag": "tag111"
+          "exp": "is_invalid_data",
+          "tag": "recieve_num"
         }
       ]
     }
