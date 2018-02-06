@@ -1,11 +1,6 @@
 package main
 
 import (
-	"encoding/json"
-	"github.com/fsnotify/fsnotify"
-	"github.com/hpcloud/tail"
-	"github.com/sdvdxl/falcon-logdog/log"
-	"github.com/streamrail/concurrent-map"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -14,7 +9,14 @@ import (
 	"runtime"
 	"strings"
 	"time"
+	"encoding/json"
+
+	"github.com/fsnotify/fsnotify"
+	"github.com/hpcloud/tail"
+	"github.com/streamrail/concurrent-map"
+
 	"./config"
+	"./log"
 )
 
 var (
@@ -27,32 +29,103 @@ func main() {
 	workers = make(chan bool, runtime.NumCPU()*2)
 	keywords = cmap.New()
 	runtime.GOMAXPROCS(runtime.NumCPU())
+	kill_chan := make(chan bool)
 
 	go func() {
-		ticker := time.NewTicker(time.Second * time.Duration(int64(config.Cfg.Timer)))
-		for range ticker.C {
-			fillData()
-
-			postData()
+		for {
+			old_tick := config.Cfg.Timer
+			ticker := time.NewTicker(time.Second * time.Duration(int64(config.Cfg.Timer)))
+			for range ticker.C {
+				if config.Cfg.Timer != old_tick {
+					old_tick = config.Cfg.Timer
+					break
+				}
+				fillData()
+				postData()
+			}
 		}
 	}()
 
 	go func() {
-		setLogFile()
-
-		log.Info("watch file", config.Cfg.WatchFiles)
-
+		ConfigFileWatcher(kill_chan)
 		for i := 0; i < len(config.Cfg.WatchFiles); i++ {
 			readFileAndSetTail(&(config.Cfg.WatchFiles[i]))
-			go logFileWatcher(&(config.Cfg.WatchFiles[i]))
+			go logFileWatcher(&(config.Cfg.WatchFiles[i]), kill_chan)
 
 		}
-
 	}()
+	//go func() {
+	//	setLogFile()
+	//
+	//	log.Info("watch file", config.Cfg.WatchFiles)
+	//
+	//	for i := 0; i < len(config.Cfg.WatchFiles); i++ {
+	//		readFileAndSetTail(&(config.Cfg.WatchFiles[i]))
+	//		go logFileWatcher(&(config.Cfg.WatchFiles[i]))
+	//
+	//	}
+	//
+	//}()
 
 	select {}
 }
-func logFileWatcher(file *config.WatchFile) {
+
+//配置文件监控,可以实现热更新
+func ConfigFileWatcher(kill_chan chan bool) {
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer watcher.Close()
+
+	done := make(chan bool)
+	go func() {
+		for {
+			select {
+			case event := <-watcher.Events:
+				if event.Name == config.ConfigFile && (event.Op == fsnotify.Chmod || event.Op == fsnotify.Rename || event.Op == fsnotify.Write || event.Op == fsnotify.Create) {
+					log.Debug("modified config file", event.Name, "will reaload config")
+					old_cfg := config.Cfg
+					if cfg, err := config.ReadConfig(config.ConfigFile); err != nil {
+						log.Debug("ERROR: config has error, will not use old config", err)
+					} else if config.CheckConfig(config.Cfg) != nil {
+						log.Debug("ERROR: config has error, will not use old config", err)
+					} else {
+						config.SetLogFile()
+						log.Debug("config reload success")
+						config.Cfg = cfg
+						for i:=0; i<len(old_cfg.WatchFiles); i++{
+							kill_chan <- true
+						}
+						for _, v := range old_cfg.WatchFiles {
+							if v.ResultFile.LogTail != nil {
+								v.ResultFile.LogTail.Stop()
+							}
+						}
+
+						for i := 0; i < len(config.Cfg.WatchFiles); i++ {
+							readFileAndSetTail(&(config.Cfg.WatchFiles[i]))
+							go logFileWatcher(&(config.Cfg.WatchFiles[i]), kill_chan)
+
+						}
+					}
+
+				}
+			case err := <-watcher.Errors:
+				log.Fatal(err)
+			}
+		}
+	}()
+
+	err = watcher.Add(".")
+	if err != nil {
+		log.Fatal(err)
+	}
+	<-done
+}
+
+func logFileWatcher(file *config.WatchFile, kill_chan chan bool) {
 	logTail := file.ResultFile.LogTail
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -65,6 +138,8 @@ func logFileWatcher(file *config.WatchFile) {
 	go func() {
 		for {
 			select {
+			case <- kill_chan:
+				break
 			case event := <-watcher.Events:
 				log.Debug("event:", event)
 
@@ -73,18 +148,20 @@ func logFileWatcher(file *config.WatchFile) {
 					if file.ResultFile.LogTail != nil {
 						logTail.Stop()
 					}
-
 					readFileAndSetTail(file)
 				} else {
 
 					if file.ResultFile.FileName == event.Name && (event.Op == fsnotify.Remove || event.Op == fsnotify.Rename) {
 						log.Warn(event, "stop to tail")
+						if file.ResultFile.LogTail != nil {
+							file.ResultFile.LogTail.Stop()
+						}
 					} else if event.Op == fsnotify.Create {
 						log.Infof("created file %v, basePath:%v", event.Name, path.Base(event.Name))
 						if strings.HasSuffix(event.Name, file.Suffix) && strings.HasPrefix(path.Base(event.Name), file.Prefix) {
-							if logTail != nil {
-								logTail.Stop()
-							}
+							//if logTail != nil {
+							//	logTail.Stop()
+							//}
 							file.ResultFile.FileName = event.Name
 							readFileAndSetTail(file)
 
@@ -137,42 +214,7 @@ func readFileAndSetTail(file *config.WatchFile) {
 
 }
 
-func setLogFile() {
-	c := config.Cfg
-	for i, v := range c.WatchFiles {
-		if v.PathIsFile {
-			c.WatchFiles[i].ResultFile.FileName = v.Path
-			continue
-		}
 
-		filepath.Walk(v.Path, func(path string, info os.FileInfo, err error) error {
-			cfgPath := v.Path
-			if strings.HasSuffix(cfgPath, "/") {
-				cfgPath = string([]rune(cfgPath)[:len(cfgPath)-1])
-			}
-			log.Debug(path)
-
-			//只读取root目录的log
-			if filepath.Dir(path) != cfgPath && info.IsDir() {
-				log.Debug(path, "not in root path, ignoring , Dir:", path, "cofig path:", cfgPath)
-				return err
-			}
-
-			log.Debug("path", path, "prefix:", v.Prefix, "suffix:", v.Suffix, "base:", filepath.Base(path), "isFile", !info.IsDir())
-			if strings.HasPrefix(filepath.Base(path), v.Prefix) && strings.HasSuffix(path, v.Suffix) && !info.IsDir() {
-
-				if c.WatchFiles[i].ResultFile.FileName == "" || info.ModTime().After(c.WatchFiles[i].ResultFile.ModTime) {
-					c.WatchFiles[i].ResultFile.FileName = path
-					c.WatchFiles[i].ResultFile.ModTime = info.ModTime()
-				}
-				return err
-			}
-
-			return err
-		})
-
-	}
-}
 
 // 查找关键词
 func handleKeywords(file config.WatchFile, line string) {

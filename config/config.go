@@ -3,15 +3,15 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/fsnotify/fsnotify"
 	"github.com/go-errors/errors"
 	"github.com/hpcloud/tail"
 	"io/ioutil"
-	"log"
 	"os"
 	"regexp"
 	"strings"
 	"time"
+	"path/filepath"
+	"log"
 )
 
 type Config struct {
@@ -61,7 +61,7 @@ type PushData struct {
 	Tags string `json:"tags"` //一组逗号分割的键值对, 对metric进一步描述和细化, 可以是空字符串. 比如idc=lg，比如service=xbox等，多个tag之间用逗号分割
 }
 
-const configFile = "cfg.json"
+const ConfigFile = "./cfg.json"
 
 var (
 	Cfg         *Config
@@ -71,17 +71,20 @@ var (
 func init() {
 
 	var err error
-	Cfg, err = ReadConfig(configFile)
+	Cfg, err = ReadConfig(ConfigFile)
 	if err != nil {
-		log.Fatal("ERROR: ", err)
+		log.Println("ERROR: ", err)
 	}
-	if err = checkConfig(Cfg); err != nil {
-		log.Fatal(err)
+	log.Println("read cfg success")
+	if err = CheckConfig(Cfg); err != nil {
+		log.Println(err)
 	}
-
-	go func() {
-		ConfigFileWatcher()
-	}()
+	log.Println("check cfg success")
+	SetLogFile()
+	log.Println("set cfg success")
+	//go func() {
+	//	ConfigFileWatcher()
+	//}()
 
 	fmt.Println("INFO: config:", Cfg)
 }
@@ -100,16 +103,16 @@ func ReadConfig(configFile string) (*Config, error) {
 	fmt.Println(config.LogLevel)
 
 	// 检查配置项目
-	if err := checkConfig(config); err != nil {
-		return nil, err
-	}
+	//if err := checkConfig(config); err != nil {
+	//	return nil, err
+	//}
 
 	log.Println("config init success, start to work ...")
 	return config, nil
 }
 
 // 检查配置项目是否正确
-func checkConfig(config *Config) error {
+func CheckConfig(config *Config) error {
 	var err error
 
 	//检查 host
@@ -170,41 +173,41 @@ func checkConfig(config *Config) error {
 	return nil
 }
 
-//配置文件监控,可以实现热更新
-func ConfigFileWatcher() {
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	defer watcher.Close()
-
-	done := make(chan bool)
-	go func() {
-		for {
-			select {
-			case event := <-watcher.Events:
-				if event.Name == configFile && (event.Op == fsnotify.Chmod || event.Op == fsnotify.Rename || event.Op == fsnotify.Write || event.Op == fsnotify.Create) {
-					log.Println("modified config file", event.Name, "will reaload config")
-					if cfg, err := ReadConfig(configFile); err != nil {
-						log.Println("ERROR: config has error, will not use old config", err)
-					} else if checkConfig(Cfg) != nil {
-						log.Println("ERROR: config has error, will not use old config", err)
-					} else {
-						log.Println("config reload success")
-						Cfg = cfg
-					}
-
-				}
-			case err := <-watcher.Errors:
-				log.Fatal(err)
-			}
+func SetLogFile() {
+	c := Cfg
+	for i, v := range c.WatchFiles {
+		if v.PathIsFile {
+			c.WatchFiles[i].ResultFile.FileName = v.Path
+			continue
 		}
-	}()
 
-	err = watcher.Add(".")
-	if err != nil {
-		log.Fatal(err)
+		filepath.Walk(v.Path, func(path string, info os.FileInfo, err error) error {
+			cfgPath := v.Path
+			if strings.HasSuffix(cfgPath, "/") {
+				cfgPath = string([]rune(cfgPath)[:len(cfgPath)-1])
+			}
+			log.Println(path)
+
+			//只读取root目录的log
+			if filepath.Dir(path) != cfgPath && info.IsDir() {
+				log.Println(path, "not in root path, ignoring , Dir:", path, "cofig path:", cfgPath)
+				return err
+			}
+
+			log.Println("path", path, "prefix:", v.Prefix, "suffix:", v.Suffix, "base:", filepath.Base(path), "isFile", !info.IsDir())
+			if strings.HasPrefix(filepath.Base(path), v.Prefix) && strings.HasSuffix(path, v.Suffix) && !info.IsDir() {
+
+				if c.WatchFiles[i].ResultFile.FileName == "" || info.ModTime().After(c.WatchFiles[i].ResultFile.ModTime) {
+					c.WatchFiles[i].ResultFile.FileName = path
+					c.WatchFiles[i].ResultFile.ModTime = info.ModTime()
+				}
+				return err
+			}
+
+			return err
+		})
+
 	}
-	<-done
 }
+
+

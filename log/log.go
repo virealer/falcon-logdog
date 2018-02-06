@@ -2,7 +2,7 @@ package log
 
 import (
 	"fmt"
-	"github.com/sdvdxl/falcon-logdog/config"
+	"../config"
 	"github.com/sdvdxl/log4go"
 	"strings"
 )
