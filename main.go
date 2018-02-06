@@ -47,12 +47,12 @@ func main() {
 	}()
 
 	go func() {
-		ConfigFileWatcher(kill_chan)
 		for i := 0; i < len(config.Cfg.WatchFiles); i++ {
 			readFileAndSetTail(&(config.Cfg.WatchFiles[i]))
 			go logFileWatcher(&(config.Cfg.WatchFiles[i]), kill_chan)
 
 		}
+		ConfigFileWatcher(kill_chan)
 	}()
 	//go func() {
 	//	setLogFile()
@@ -84,31 +84,36 @@ func ConfigFileWatcher(kill_chan chan bool) {
 		for {
 			select {
 			case event := <-watcher.Events:
-				if event.Name == config.ConfigFile && (event.Op == fsnotify.Chmod || event.Op == fsnotify.Rename || event.Op == fsnotify.Write || event.Op == fsnotify.Create) {
-					log.Debug("modified config file", event.Name, "will reaload config")
+				log.Debug("event name:", event.Name, event.Op, config.ConfigFile)
+				if event.Name == config.ConfigFile && event.Op == fsnotify.Write {
+					log.Debug("event : modified config file", event.Name, "will reaload config", event.Op)
 					old_cfg := config.Cfg
-					if cfg, err := config.ReadConfig(config.ConfigFile); err != nil {
-						log.Debug("ERROR: config has error, will not use old config", err)
+					var err error
+					if config.Cfg, err = config.ReadConfig(config.ConfigFile); err != nil {
+						log.Debug("ERROR: event: config has error, will not use old config", err)
 					} else if config.CheckConfig(config.Cfg) != nil {
-						log.Debug("ERROR: config has error, will not use old config", err)
+						log.Debug("ERROR: event: config has error, will not use old config", err)
 					} else {
 						config.SetLogFile()
-						log.Debug("config reload success")
-						config.Cfg = cfg
+						log.Debug("event: config reload success", )
 						for i:=0; i<len(old_cfg.WatchFiles); i++{
 							kill_chan <- true
 						}
+						log.Debug("event: old watcher all killed success")
 						for _, v := range old_cfg.WatchFiles {
 							if v.ResultFile.LogTail != nil {
 								v.ResultFile.LogTail.Stop()
 							}
 						}
+						log.Debug("event: stop all old tail -f ")
 
 						for i := 0; i < len(config.Cfg.WatchFiles); i++ {
 							readFileAndSetTail(&(config.Cfg.WatchFiles[i]))
 							go logFileWatcher(&(config.Cfg.WatchFiles[i]), kill_chan)
 
 						}
+						log.Debug("event: satrt new file tail success")
+
 					}
 
 				}
@@ -139,6 +144,7 @@ func logFileWatcher(file *config.WatchFile, kill_chan chan bool) {
 		for {
 			select {
 			case <- kill_chan:
+				log.Debug("event: log file watcher killed")
 				break
 			case event := <-watcher.Events:
 				log.Debug("event:", event)
@@ -197,14 +203,14 @@ func readFileAndSetTail(file *config.WatchFile) {
 		return
 	}
 
-	log.Info("read file", file.ResultFile.FileName)
+	log.Info("event:  read file", file.ResultFile.FileName, file)
 	tail, err := tail.TailFile(file.ResultFile.FileName, tail.Config{Follow: true})
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	file.ResultFile.LogTail = tail
-
+	log.Debug("event: will start tail")
 	go func() {
 		for line := range tail.Lines {
 			log.Debug("log line: ", line.Text)
@@ -220,10 +226,12 @@ func readFileAndSetTail(file *config.WatchFile) {
 func handleKeywords(file config.WatchFile, line string) {
 	for _, p := range file.Keywords {
 		value := 0.0
+		log.Debug("event: before match", p, line)
 		if p.Regex.MatchString(line) {
 			log.Debugf("exp:%v match ===> line: %v ", p.Regex.String(), line)
 			value = 1.0
 		}
+		log.Debug("event: before match")
 		key := file.ResultFile.FileName + p.Tag
 		var data config.PushData
 		if v, ok := keywords.Get(key); ok {
@@ -272,7 +280,7 @@ func postData() {
 			} else {
 				defer resp.Body.Close()
 				bytes, _ = ioutil.ReadAll(resp.Body)
-				log.Debug(string(bytes))
+				log.Debug("push data", string(bytes))
 			}
 		}
 

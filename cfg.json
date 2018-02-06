@@ -6,15 +6,15 @@
   "host": "",
   "files": [
     {
-      "path": "/home/video/video-process/watermark_service/scheduler/shell",
-      "prefix": "",
+      "path": "/home/video/falcon-logdog/test",
+      "prefix": "test",
       "suffix": "",
       "keywords": [
         {
-          "exp": "is_invalid_data",
-          "tag": "recieve_num"
+          "exp": "test",
+          "tag": "lines"
         }
       ]
-    }
+    } 
   ]
 }
