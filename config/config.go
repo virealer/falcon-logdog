@@ -32,11 +32,14 @@ type resultFile struct {
 type WatchFile struct {
 	Path       string //路径
 	Prefix     string //log前缀
+	PrefixExp  *regexp.Regexp
 	Suffix     string //log后缀
+	SuffixExp  *regexp.Regexp
 	Keywords   []keyWord
 	PathIsFile bool       //path 是否是文件
 	ResultFile resultFile `json:"-"`
 }
+
 
 type keyWord struct {
 	Exp      string
@@ -138,10 +141,16 @@ func CheckConfig(config *Config) error {
 
 		//检查后缀,如果没有,则默认为.log
 		config.WatchFiles[i].Prefix = strings.TrimSpace(v.Prefix)
+		if config.WatchFiles[i].PrefixExp, err = regexp.Compile(config.WatchFiles[i].Prefix); err != nil {
+			return err
+		}
 		config.WatchFiles[i].Suffix = strings.TrimSpace(v.Suffix)
 		if config.WatchFiles[i].Suffix == "" {
 			log.Println("file pre ", config.WatchFiles[i].Path, "suffix is no set, will use .log")
 			config.WatchFiles[i].Suffix = ".log"
+		}
+		if config.WatchFiles[i].SuffixExp, err = regexp.Compile(config.WatchFiles[i].Suffix); err != nil {
+			return err
 		}
 
 		//agent不检查,可能后启动agent
@@ -195,8 +204,8 @@ func SetLogFile() {
 			}
 
 			log.Println("path", path, "prefix:", v.Prefix, "suffix:", v.Suffix, "base:", filepath.Base(path), "isFile", !info.IsDir())
-			if strings.HasPrefix(filepath.Base(path), v.Prefix) && strings.HasSuffix(path, v.Suffix) && !info.IsDir() {
-
+			// if strings.HasPrefix(filepath.Base(path), v.Prefix) && strings.HasSuffix(path, v.Suffix) && !info.IsDir() {
+			if v.PrefixExp.MatchString(filepath.Base(path)) && v.SuffixExp.MatchString(path) && !info.IsDir() {
 				if c.WatchFiles[i].ResultFile.FileName == "" || info.ModTime().After(c.WatchFiles[i].ResultFile.ModTime) {
 					c.WatchFiles[i].ResultFile.FileName = path
 					c.WatchFiles[i].ResultFile.ModTime = info.ModTime()

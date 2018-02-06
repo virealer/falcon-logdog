@@ -25,12 +25,10 @@ var (
 )
 
 func main() {
-
 	workers = make(chan bool, runtime.NumCPU()*2)
 	keywords = cmap.New()
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	kill_chan := make(chan bool)
-
 	go func() {
 		for {
 			old_tick := config.Cfg.Timer
@@ -45,7 +43,6 @@ func main() {
 			}
 		}
 	}()
-
 	go func() {
 		for i := 0; i < len(config.Cfg.WatchFiles); i++ {
 			readFileAndSetTail(&(config.Cfg.WatchFiles[i]))
@@ -66,7 +63,6 @@ func main() {
 	//	}
 	//
 	//}()
-
 	select {}
 }
 
@@ -164,10 +160,11 @@ func logFileWatcher(file *config.WatchFile, kill_chan chan bool) {
 						}
 					} else if event.Op == fsnotify.Create {
 						log.Infof("created file %v, basePath:%v", event.Name, path.Base(event.Name))
-						if strings.HasSuffix(event.Name, file.Suffix) && strings.HasPrefix(path.Base(event.Name), file.Prefix) {
-							//if logTail != nil {
-							//	logTail.Stop()
-							//}
+						//if strings.HasSuffix(event.Name, file.Suffix) && strings.HasPrefix(path.Base(event.Name), file.Prefix) {
+						if file.PrefixExp.MatchString(filepath.Base(event.Name)) && file.SuffixExp.MatchString(event.Name) {
+							if file.ResultFile.LogTail != nil {
+								file.ResultFile.LogTail.Stop()
+							}
 							file.ResultFile.FileName = event.Name
 							readFileAndSetTail(file)
 
