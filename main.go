@@ -17,6 +17,7 @@ import (
 
 	"./config"
 	"./log"
+	"./config_server"
 )
 
 var (
@@ -25,6 +26,9 @@ var (
 )
 
 func main() {
+	if err := config.Init_config(); err != nil {
+		return
+	}
 	workers = make(chan bool, runtime.NumCPU()*2)
 	keywords = cmap.New()
 	runtime.GOMAXPROCS(runtime.NumCPU())
@@ -63,6 +67,7 @@ func main() {
 	//	}
 	//
 	//}()
+	config_server.Push_handler()
 	select {}
 }
 
@@ -223,12 +228,10 @@ func readFileAndSetTail(file *config.WatchFile) {
 func handleKeywords(file config.WatchFile, line string) {
 	for _, p := range file.Keywords {
 		value := 0.0
-		log.Debug("event: before match", p, line)
 		if p.Regex.MatchString(line) {
-			log.Debugf("exp:%v match ===> line: %v ", p.Regex.String(), line)
+			// log.Debugf("exp:%v match ===> line: %v ", p.Regex.String(), line)
 			value = 1.0
 		}
-		log.Debug("event: before match")
 		key := file.ResultFile.FileName + p.Tag
 		var data config.PushData
 		if v, ok := keywords.Get(key); ok {

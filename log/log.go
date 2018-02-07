@@ -2,7 +2,6 @@ package log
 
 import (
 	"fmt"
-	"../config"
 	"github.com/sdvdxl/log4go"
 	"strings"
 )
@@ -14,47 +13,48 @@ var (
 func init() {
 	//初始化日志
 	logger = log4go.NewConsoleLogger(log4go.DEBUG)
+	//
+	//logger.Debug("log level %s", config.Cfg.LogLevel)
+	//logLevel := log4go.TRACE
+	//
+	//switch config.Cfg.LogLevel {
+	//case log4go.FINEST.String():
+	//	fallthrough
+	//case "FINEST":
+	//	logLevel = log4go.FINEST
+	//case log4go.FINE.String():
+	//	fallthrough
+	//case "FINE":
+	//	logLevel = log4go.FINE
+	//case log4go.DEBUG.String():
+	//	fallthrough
+	//case "DEBUG":
+	//	logLevel = log4go.DEBUG
+	//case log4go.TRACE.String():
+	//	fallthrough
+	//case "TRACE":
+	//	logLevel = log4go.TRACE
+	//case log4go.INFO.String():
+	//	fallthrough
+	//case "INFO":
+	//	logLevel = log4go.INFO
+	//case log4go.WARNING.String():
+	//	fallthrough
+	//case "WARN":
+	//	logLevel = log4go.WARNING
+	//case log4go.ERROR.String():
+	//	fallthrough
+	//case "ERROR":
+	//	logLevel = log4go.ERROR
+	//case log4go.CRITICAL.String():
+	//	fallthrough
+	//case "FATAL":
+	//	logLevel = log4go.CRITICAL
+	//default:
+	//	logLevel = log4go.INFO
+	//}
 
-	logger.Debug("log level %s", config.Cfg.LogLevel)
-	logLevel := log4go.TRACE
-
-	switch config.Cfg.LogLevel {
-	case log4go.FINEST.String():
-		fallthrough
-	case "FINEST":
-		logLevel = log4go.FINEST
-	case log4go.FINE.String():
-		fallthrough
-	case "FINE":
-		logLevel = log4go.FINE
-	case log4go.DEBUG.String():
-		fallthrough
-	case "DEBUG":
-		logLevel = log4go.DEBUG
-	case log4go.TRACE.String():
-		fallthrough
-	case "TRACE":
-		logLevel = log4go.TRACE
-	case log4go.INFO.String():
-		fallthrough
-	case "INFO":
-		logLevel = log4go.INFO
-	case log4go.WARNING.String():
-		fallthrough
-	case "WARN":
-		logLevel = log4go.WARNING
-	case log4go.ERROR.String():
-		fallthrough
-	case "ERROR":
-		logLevel = log4go.ERROR
-	case log4go.CRITICAL.String():
-		fallthrough
-	case "FATAL":
-		logLevel = log4go.CRITICAL
-	default:
-		logLevel = log4go.INFO
-	}
-
+	logLevel := log4go.DEBUG
 	logger = log4go.NewConsoleLogger(logLevel)
 	logger.Info("log inited , level： %v", logLevel)
 

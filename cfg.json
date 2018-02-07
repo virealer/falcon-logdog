@@ -1,20 +1,8 @@
 {
-  "logLevel": "DEBUG",
-  "metric": "log.watermark.success",
-  "timer": 30,
-  "agent": "http://127.0.0.1:8999/v1/push",
-  "host": "",
-  "files": [
-    {
-      "path": "/home/video/falcon-logdog/test",
-      "prefix": "test",
-      "suffix": "",
-      "keywords": [
-        {
-          "exp": "test",
-          "tag": "lines"
-        }
-      ]
-    } 
+  "logLevel":"DEBUG",
+  "metric":"logdog",
+  "timer":30,"agent":"http://127.0.0.1:8999/v1/push",
+  "host":"",
+  "files":[
   ]
 }

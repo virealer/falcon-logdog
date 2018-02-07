@@ -64,32 +64,40 @@ type PushData struct {
 	Tags string `json:"tags"` //一组逗号分割的键值对, 对metric进一步描述和细化, 可以是空字符串. 比如idc=lg，比如service=xbox等，多个tag之间用逗号分割
 }
 
-const ConfigFile = "./cfg.json"
+const ConfigFile = "cfg.json"
 
 var (
 	Cfg         *Config
 	fixExpRegex = regexp.MustCompile(`[\W]+`)
 )
 
-func init() {
-
+func Init_config() error {
 	var err error
-	Cfg, err = ReadConfig(ConfigFile)
-	if err != nil {
+
+	if Cfg, err = ReadConfig(ConfigFile); err != nil {
 		log.Println("ERROR: ", err)
+		return err
 	}
 	log.Println("read cfg success")
+
 	if err = CheckConfig(Cfg); err != nil {
 		log.Println(err)
+		return err
 	}
 	log.Println("check cfg success")
-	SetLogFile()
+
+	if err = SetLogFile(); err != nil {
+		log.Println(err)
+		return err
+	}
 	log.Println("set cfg success")
+
 	//go func() {
 	//	ConfigFileWatcher()
 	//}()
 
 	fmt.Println("INFO: config:", Cfg)
+	return nil
 }
 
 func ReadConfig(configFile string) (*Config, error) {
@@ -134,20 +142,27 @@ func CheckConfig(config *Config) error {
 		if err != nil {
 			return err
 		}
+		log.Println(v.Path)
+		if os.IsNotExist(err) {
+			return err
+		}
 
 		if !fInfo.IsDir() {
 			config.WatchFiles[i].PathIsFile = true
 		}
 
-		//检查后缀,如果没有,则默认为.log
 		config.WatchFiles[i].Prefix = strings.TrimSpace(v.Prefix)
+		if config.WatchFiles[i].Prefix == "" {
+			log.Println("file pre ", config.WatchFiles[i].Path, "prefix is no set, will use \\.*")
+			config.WatchFiles[i].Prefix = "\\.*"
+		}
 		if config.WatchFiles[i].PrefixExp, err = regexp.Compile(config.WatchFiles[i].Prefix); err != nil {
 			return err
 		}
 		config.WatchFiles[i].Suffix = strings.TrimSpace(v.Suffix)
 		if config.WatchFiles[i].Suffix == "" {
-			log.Println("file pre ", config.WatchFiles[i].Path, "suffix is no set, will use .log")
-			config.WatchFiles[i].Suffix = ".log"
+			log.Println("file pre ", config.WatchFiles[i].Path, "suffix is no set, will use \\.*")
+			config.WatchFiles[i].Suffix = "\\.*"
 		}
 		if config.WatchFiles[i].SuffixExp, err = regexp.Compile(config.WatchFiles[i].Suffix); err != nil {
 			return err
@@ -182,7 +197,7 @@ func CheckConfig(config *Config) error {
 	return nil
 }
 
-func SetLogFile() {
+func SetLogFile() error {
 	c := Cfg
 	for i, v := range c.WatchFiles {
 		if v.PathIsFile {
@@ -212,11 +227,11 @@ func SetLogFile() {
 				}
 				return err
 			}
-
 			return err
 		})
 
 	}
+	return nil
 }
 
 
