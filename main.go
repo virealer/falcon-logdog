@@ -206,9 +206,12 @@ func readFileAndSetTail(file *config.WatchFile) {
 	file.ResultFile.LogTail = tail
 	log.Debug("event: will start tail")
 	go func() {
+		start := time.Now().Unix()
 		for line := range tail.Lines {
 			// log.Debug("log line: ", line.Text)
-			handleKeywords(*file, line.Text)
+			if time.Now().Unix() - start > 10 {
+				handleKeywords(*file, line.Text)
+			}
 		}
 	}()
 
@@ -240,9 +243,7 @@ func handleKeywords(file config.WatchFile, line string) {
 				Tags:		"patn="+file.Path+",pattern="+file.FilePattern+",tag="+p.Tag,
 			}
 		}
-
 		keywords.Set(key, data)
-
 	}
 }
 
