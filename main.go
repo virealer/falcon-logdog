@@ -23,14 +23,14 @@ import (
 var (
 	workers  chan bool
 	keywords cmap.ConcurrentMap
-	start bool  // 启动后丢弃第一次的数据
+	//start bool  // 启动后丢弃第一次的数据
 )
 
 func main() {
 	if err := config.Init_config(); err != nil {
 		return
 	}
-	start = true
+	//start = true
 	workers = make(chan bool, runtime.NumCPU()*2)
 	keywords = cmap.New()
 	runtime.GOMAXPROCS(runtime.NumCPU())
@@ -43,16 +43,17 @@ func main() {
 					old_tick = config.Cfg.Timer
 					break
 				}
-				if start == true {
-					for k := range keywords.Items() {
-						keywords.Remove(k)
-					}
-					start = false
-				} else {
-					fillData()
-					postData()
-				}
-
+				//if start == true {
+				//	for k := range keywords.Items() {
+				//		keywords.Remove(k)
+				//	}
+				//	start = false
+				//} else {
+				//	fillData()
+				//	postData()
+				//}
+				fillData()
+				postData()
 			}
 		}
 	}()
@@ -198,20 +199,21 @@ func readFileAndSetTail(file *config.WatchFile) {
 	}
 
 	log.Info("event:  read file", file.ResultFile.FileName, file)
-	tail, err := tail.TailFile(file.ResultFile.FileName, tail.Config{Follow: true})
+	tail_end, err := tail.TailFile(file.ResultFile.FileName, tail.Config{Follow: true, Location: &tail.SeekInfo{Offset: 0, Whence: os.SEEK_END}})
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	file.ResultFile.LogTail = tail
+	file.ResultFile.LogTail = tail_end
 	log.Debug("event: will start tail")
 	go func() {
-		start := time.Now().Unix()
-		for line := range tail.Lines {
+		//start := time.Now().Unix()
+		for line := range tail_end.Lines {
+			handleKeywords(*file, line.Text)
 			// log.Debug("log line: ", line.Text)
-			if time.Now().Unix() - start > 10 {
-				handleKeywords(*file, line.Text)
-			}
+			//if time.Now().Unix() - start > 10 {
+			//	handleKeywords(*file, line.Text)
+			//}
 		}
 	}()
 
