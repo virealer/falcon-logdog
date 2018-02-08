@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"../config"
+	"log"
 )
 
 //func init() {
@@ -33,30 +34,38 @@ func Push_handler() {
 				http.Error(w, "connot decode body", http.StatusBadRequest)
 				return
 			}
-			fmt.Println(cfg.LogLevel)
-			file, err := os.OpenFile("cfg.json", os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0666)
-			if err != nil {
-				http.Error(w, "open file error", http.StatusBadRequest)
+
+			if err := config.CheckConfig(cfg); err != nil {
+				log.Println(err)
+				http.Error(w, "config is wrong", http.StatusBadRequest)
 				return
+			} else {
+				fmt.Println(cfg.LogLevel)
+				file, err := os.OpenFile("cfg.json", os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0666)
+				defer file.Close()
+				if err != nil {
+					http.Error(w, "open file error", http.StatusBadRequest)
+					return
+				}
+				//new_result, err := json.Marshal(cfg)
+				//if err != nil {
+				//	fmt.Println(err)
+				//}
+				bytesWritten, err := file.Write(result)
+				if err != nil {
+					http.Error(w, "write file error", http.StatusBadRequest)
+					return
+				}
+				fmt.Println(bytesWritten,"bytes writed")
+				w.Write([]byte("success"))
+				//decoder := json.NewDecoder(req.Body)
+				//err := decoder.Decode(&cfg)
+				//if err != nil {
+				//	http.Error(w, "connot decode body", http.StatusBadRequest)
+				//	return
+				//}
 			}
-			defer file.Close()
-			//new_result, err := json.Marshal(cfg)
-			//if err != nil {
-			//	fmt.Println(err)
-			//}
-			bytesWritten, err := file.Write(result)
-			if err != nil {
-				http.Error(w, "write file error", http.StatusBadRequest)
-				return
-			}
-			fmt.Println(bytesWritten,"bytes writed")
-			w.Write([]byte("success"))
-			//decoder := json.NewDecoder(req.Body)
-			//err := decoder.Decode(&cfg)
-			//if err != nil {
-			//	http.Error(w, "connot decode body", http.StatusBadRequest)
-			//	return
-			//}
+
 		} else {
 			w.Write([]byte("Only support POST json"))
 		}

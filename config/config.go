@@ -38,6 +38,7 @@ type WatchFile struct {
 	Keywords   []keyWord
 	PathIsFile bool       //path 是否是文件
 	ResultFile resultFile `json:"-"`
+	Close_chan chan bool
 }
 
 
@@ -86,7 +87,7 @@ func Init_config() error {
 	}
 	log.Println("check cfg success")
 
-	if err = SetLogFile(); err != nil {
+	if err = SetLogFile(Cfg); err != nil {
 		log.Println(err)
 		return err
 	}
@@ -151,6 +152,7 @@ func CheckConfig(config *Config) error {
 			config.WatchFiles[i].PathIsFile = true
 		}
 
+		config.WatchFiles[i].Close_chan = make(chan bool)
 		config.WatchFiles[i].Prefix = strings.TrimSpace(v.Prefix)
 		if config.WatchFiles[i].Prefix == "" {
 			log.Println("file pre ", config.WatchFiles[i].Path, "prefix is no set, will use \\.*")
@@ -197,8 +199,7 @@ func CheckConfig(config *Config) error {
 	return nil
 }
 
-func SetLogFile() error {
-	c := Cfg
+func SetLogFile(c *Config) error {
 	for i, v := range c.WatchFiles {
 		if v.PathIsFile {
 			c.WatchFiles[i].ResultFile.FileName = v.Path

@@ -23,16 +23,17 @@ import (
 var (
 	workers  chan bool
 	keywords cmap.ConcurrentMap
+	start bool  // 启动后丢弃第一次的数据
 )
 
 func main() {
 	if err := config.Init_config(); err != nil {
 		return
 	}
+	start = true
 	workers = make(chan bool, runtime.NumCPU()*2)
 	keywords = cmap.New()
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	kill_chan := make(chan bool)
 	go func() {
 		for {
 			old_tick := config.Cfg.Timer
@@ -42,44 +43,37 @@ func main() {
 					old_tick = config.Cfg.Timer
 					break
 				}
-				fillData()
-				postData()
+				if start == true {
+					for k := range keywords.Items() {
+						keywords.Remove(k)
+					}
+					start = false
+				} else {
+					fillData()
+					postData()
+				}
+
 			}
 		}
 	}()
 	go func() {
 		for i := 0; i < len(config.Cfg.WatchFiles); i++ {
 			readFileAndSetTail(&(config.Cfg.WatchFiles[i]))
-			go logFileWatcher(&(config.Cfg.WatchFiles[i]), kill_chan)
+			go logFileWatcher(&(config.Cfg.WatchFiles[i]))
 
 		}
-		ConfigFileWatcher(kill_chan)
+		ConfigFileWatcher()
 	}()
-	//go func() {
-	//	setLogFile()
-	//
-	//	log.Info("watch file", config.Cfg.WatchFiles)
-	//
-	//	for i := 0; i < len(config.Cfg.WatchFiles); i++ {
-	//		readFileAndSetTail(&(config.Cfg.WatchFiles[i]))
-	//		go logFileWatcher(&(config.Cfg.WatchFiles[i]))
-	//
-	//	}
-	//
-	//}()
 	config_server.Push_handler()
-	select {}
 }
 
 //配置文件监控,可以实现热更新
-func ConfigFileWatcher(kill_chan chan bool) {
+func ConfigFileWatcher() {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	defer watcher.Close()
-
 	done := make(chan bool)
 	go func() {
 		for {
@@ -89,28 +83,29 @@ func ConfigFileWatcher(kill_chan chan bool) {
 				if event.Name == config.ConfigFile && event.Op == fsnotify.Write {
 					log.Debug("event : modified config file", event.Name, "will reaload config", event.Op)
 					old_cfg := config.Cfg
-					var err error
-					if config.Cfg, err = config.ReadConfig(config.ConfigFile); err != nil {
+					//var err error
+					if new_config, err := config.ReadConfig(config.ConfigFile); err != nil {
 						log.Debug("ERROR: event: config has error, will not use old config", err)
-					} else if config.CheckConfig(config.Cfg) != nil {
+					} else if config.CheckConfig(new_config) != nil {
+						log.Debug("ERROR: event: config has error, will not use old config", err)
+					} else if config.SetLogFile(new_config) != nil {
 						log.Debug("ERROR: event: config has error, will not use old config", err)
 					} else {
-						config.SetLogFile()
 						log.Debug("event: config reload success", )
-						for i:=0; i<len(old_cfg.WatchFiles); i++{
-							kill_chan <- true
-						}
 						log.Debug("event: old watcher all killed success")
 						for _, v := range old_cfg.WatchFiles {
 							if v.ResultFile.LogTail != nil {
+								v.Close_chan <- true
 								v.ResultFile.LogTail.Stop()
 							}
 						}
 						log.Debug("event: stop all old tail -f ")
 
+						log.Debug("use new config")
+						config.Cfg = new_config
 						for i := 0; i < len(config.Cfg.WatchFiles); i++ {
 							readFileAndSetTail(&(config.Cfg.WatchFiles[i]))
-							go logFileWatcher(&(config.Cfg.WatchFiles[i]), kill_chan)
+							go logFileWatcher(&(config.Cfg.WatchFiles[i]))
 
 						}
 						log.Debug("event: satrt new file tail success")
@@ -131,7 +126,7 @@ func ConfigFileWatcher(kill_chan chan bool) {
 	<-done
 }
 
-func logFileWatcher(file *config.WatchFile, kill_chan chan bool) {
+func logFileWatcher(file *config.WatchFile) {
 	logTail := file.ResultFile.LogTail
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -144,7 +139,7 @@ func logFileWatcher(file *config.WatchFile, kill_chan chan bool) {
 	go func() {
 		for {
 			select {
-			case <- kill_chan:
+			case <- file.Close_chan:
 				log.Debug("event: log file watcher killed")
 				break
 			case event := <-watcher.Events:
@@ -157,7 +152,6 @@ func logFileWatcher(file *config.WatchFile, kill_chan chan bool) {
 					}
 					readFileAndSetTail(file)
 				} else {
-
 					if file.ResultFile.FileName == event.Name && (event.Op == fsnotify.Remove || event.Op == fsnotify.Rename) {
 						log.Warn(event, "stop to tail")
 						if file.ResultFile.LogTail != nil {
@@ -172,11 +166,9 @@ func logFileWatcher(file *config.WatchFile, kill_chan chan bool) {
 							}
 							file.ResultFile.FileName = event.Name
 							readFileAndSetTail(file)
-
 						}
 					}
 				}
-
 			case err := <-watcher.Errors:
 				log.Error(err)
 			}
@@ -215,14 +207,12 @@ func readFileAndSetTail(file *config.WatchFile) {
 	log.Debug("event: will start tail")
 	go func() {
 		for line := range tail.Lines {
-			log.Debug("log line: ", line.Text)
+			// log.Debug("log line: ", line.Text)
 			handleKeywords(*file, line.Text)
 		}
 	}()
 
 }
-
-
 
 // 查找关键词
 func handleKeywords(file config.WatchFile, line string) {
