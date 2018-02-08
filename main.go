@@ -232,7 +232,8 @@ func handleKeywords(file config.WatchFile, line string) {
 			// log.Debugf("exp:%v match ===> line: %v ", p.Regex.String(), line)
 			value = 1.0
 		}
-		key := file.ResultFile.FileName + p.Tag
+		// key := file.ResultFile.FileName + p.Tag
+		key := file.Path + p.Tag
 		var data config.PushData
 		if v, ok := keywords.Get(key); ok {
 			d := v.(config.PushData)
@@ -294,7 +295,8 @@ func fillData() {
 	for _, v := range c.WatchFiles {
 		for _, p := range v.Keywords {
 
-			key := v.ResultFile.FileName + p.Tag
+			//key := v.ResultFile.FileName + p.Tag
+			key := v.Path + p.Tag
 			//log.Println("_______", key)
 			// key := p.Exp
 			if _, ok := keywords.Get(key); ok {
@@ -310,7 +312,6 @@ func fillData() {
 				CounterType: "GAUGE",
 				Tags:        "prefix=" + v.Prefix + ",suffix=" + v.Suffix + "," + p.Tag + "=" + p.FixedExp,
 			}
-
 			keywords.Set(key, data)
 		}
 	}
