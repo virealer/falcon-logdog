@@ -31,10 +31,12 @@ type resultFile struct {
 
 type WatchFile struct {
 	Path       string //路径
-	Prefix     string //log前缀
-	PrefixExp  *regexp.Regexp
-	Suffix     string //log后缀
-	SuffixExp  *regexp.Regexp
+	FilePattern  string
+	FilePatternExp *regexp.Regexp
+	//Prefix     string //log前缀
+	//PrefixExp  *regexp.Regexp
+	//Suffix     string //log后缀
+	//SuffixExp  *regexp.Regexp
 	Keywords   []keyWord
 	PathIsFile bool       //path 是否是文件
 	ResultFile resultFile `json:"-"`
@@ -153,22 +155,32 @@ func CheckConfig(config *Config) error {
 		}
 
 		config.WatchFiles[i].Close_chan = make(chan bool)
-		config.WatchFiles[i].Prefix = strings.TrimSpace(v.Prefix)
-		if config.WatchFiles[i].Prefix == "" {
-			log.Println("file pre ", config.WatchFiles[i].Path, "prefix is no set, will use \\.*")
-			config.WatchFiles[i].Prefix = "\\.*"
+
+
+		if config.WatchFiles[i].FilePattern == "" {
+			log.Println("file pre ", config.WatchFiles[i].Path, "filematch is no set, will use \\.*")
+			config.WatchFiles[i].FilePattern = "\\.*"
+			// errors.New("ERROR: filematch must set ")
 		}
-		if config.WatchFiles[i].PrefixExp, err = regexp.Compile(config.WatchFiles[i].Prefix); err != nil {
+		if config.WatchFiles[i].FilePatternExp, err = regexp.Compile(config.WatchFiles[i].FilePattern); err != nil {
 			return err
 		}
-		config.WatchFiles[i].Suffix = strings.TrimSpace(v.Suffix)
-		if config.WatchFiles[i].Suffix == "" {
-			log.Println("file pre ", config.WatchFiles[i].Path, "suffix is no set, will use \\.*")
-			config.WatchFiles[i].Suffix = "\\.*"
-		}
-		if config.WatchFiles[i].SuffixExp, err = regexp.Compile(config.WatchFiles[i].Suffix); err != nil {
-			return err
-		}
+		//config.WatchFiles[i].Prefix = strings.TrimSpace(v.Prefix)
+		//if config.WatchFiles[i].Prefix == "" {
+		//	log.Println("file pre ", config.WatchFiles[i].Path, "prefix is no set, will use \\.*")
+		//	config.WatchFiles[i].Prefix = "\\.*"
+		//}
+		//if config.WatchFiles[i].PrefixExp, err = regexp.Compile(config.WatchFiles[i].Prefix); err != nil {
+		//	return err
+		//}
+		//config.WatchFiles[i].Suffix = strings.TrimSpace(v.Suffix)
+		//if config.WatchFiles[i].Suffix == "" {
+		//	log.Println("file pre ", config.WatchFiles[i].Path, "suffix is no set, will use \\.*")
+		//	config.WatchFiles[i].Suffix = "\\.*"
+		//}
+		//if config.WatchFiles[i].SuffixExp, err = regexp.Compile(config.WatchFiles[i].Suffix); err != nil {
+		//	return err
+		//}
 
 		//agent不检查,可能后启动agent
 
@@ -219,9 +231,9 @@ func SetLogFile(c *Config) error {
 				return err
 			}
 
-			log.Println("path", path, "prefix:", v.Prefix, "suffix:", v.Suffix, "base:", filepath.Base(path), "isFile", !info.IsDir())
+			// log.Println("path", path, "prefix:", v.Prefix, "suffix:", v.Suffix, "base:", filepath.Base(path), "isFile", !info.IsDir())
 			// if strings.HasPrefix(filepath.Base(path), v.Prefix) && strings.HasSuffix(path, v.Suffix) && !info.IsDir() {
-			if v.PrefixExp.MatchString(filepath.Base(path)) && v.SuffixExp.MatchString(path) && !info.IsDir() {
+			if v.FilePatternExp.MatchString(filepath.Base(path)) && !info.IsDir() {
 				if c.WatchFiles[i].ResultFile.FileName == "" || info.ModTime().After(c.WatchFiles[i].ResultFile.ModTime) {
 					c.WatchFiles[i].ResultFile.FileName = path
 					c.WatchFiles[i].ResultFile.ModTime = info.ModTime()

@@ -160,7 +160,7 @@ func logFileWatcher(file *config.WatchFile) {
 					} else if event.Op == fsnotify.Create {
 						log.Infof("created file %v, basePath:%v", event.Name, path.Base(event.Name))
 						//if strings.HasSuffix(event.Name, file.Suffix) && strings.HasPrefix(path.Base(event.Name), file.Prefix) {
-						if file.PrefixExp.MatchString(filepath.Base(event.Name)) && file.SuffixExp.MatchString(event.Name) {
+						if file.FilePatternExp.MatchString(filepath.Base(event.Name)) {
 							if file.ResultFile.LogTail != nil {
 								file.ResultFile.LogTail.Stop()
 							}
@@ -223,7 +223,7 @@ func handleKeywords(file config.WatchFile, line string) {
 			value = 1.0
 		}
 		// key := file.ResultFile.FileName + p.Tag
-		key := file.Path + p.Tag
+		key := file.Path + file.FilePattern + p.Tag
 		var data config.PushData
 		if v, ok := keywords.Get(key); ok {
 			d := v.(config.PushData)
@@ -236,7 +236,8 @@ func handleKeywords(file config.WatchFile, line string) {
 				Value:       value,
 				Step:        config.Cfg.Timer,
 				CounterType: "GAUGE",
-				Tags:        "prefix=" + file.Prefix + ",suffix=" + file.Suffix + "," + p.Tag + "=" + p.FixedExp,
+				//Tags:        "prefix=" + file.Prefix + ",suffix=" + file.Suffix + "," + p.Tag + "=" + p.FixedExp,
+				Tags:		 key,
 			}
 		}
 
@@ -286,7 +287,7 @@ func fillData() {
 		for _, p := range v.Keywords {
 
 			//key := v.ResultFile.FileName + p.Tag
-			key := v.Path + p.Tag
+			key := v.Path + v.FilePattern + p.Tag
 			//log.Println("_______", key)
 			// key := p.Exp
 			if _, ok := keywords.Get(key); ok {
@@ -300,7 +301,8 @@ func fillData() {
 				Value:       0.0,
 				Step:        c.Timer,
 				CounterType: "GAUGE",
-				Tags:        "prefix=" + v.Prefix + ",suffix=" + v.Suffix + "," + p.Tag + "=" + p.FixedExp,
+				//Tags:        "prefix=" + v.Prefix + ",suffix=" + v.Suffix + "," + p.Tag + "=" + p.FixedExp,
+				Tags:		 key,
 			}
 			keywords.Set(key, data)
 		}
