@@ -79,7 +79,7 @@ func ConfigFileWatcher() {
 		for {
 			select {
 			case event := <-watcher.Events:
-				log.Debug("event name:", event.Name, event.Op, config.ConfigFile)
+				//log.Debug("event name:", event.Name, event.Op, config.ConfigFile)
 				if event.Name == config.ConfigFile && event.Op == fsnotify.Write {
 					log.Debug("event : modified config file", event.Name, "will reaload config", event.Op)
 					old_cfg := config.Cfg
@@ -143,7 +143,7 @@ func logFileWatcher(file *config.WatchFile) {
 				log.Debug("event: log file watcher killed")
 				break
 			case event := <-watcher.Events:
-				log.Debug("event:", event)
+				//log.Debug("event:", event)
 
 				if file.PathIsFile && event.Op == fsnotify.Create && event.Name == file.Path {
 					log.Info("continue to watch file:", event.Name)
