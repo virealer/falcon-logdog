@@ -93,9 +93,11 @@ func ConfigFileWatcher() {
 						log.Debug("ERROR: event: config has error, will not use old config", err)
 					} else {
 						log.Debug("event: config reload success", )
+						log.Debug("event: new config:", new_config)
 						log.Debug("event: old watcher all killed success")
 						for _, v := range old_cfg.WatchFiles {
 							if v.ResultFile.LogTail != nil {
+								log.Debug("event: try to stop old tail")
 								v.Close_chan <- true
 								v.ResultFile.LogTail.Stop()
 							}
@@ -105,6 +107,7 @@ func ConfigFileWatcher() {
 						log.Debug("use new config")
 						config.Cfg = new_config
 						for i := 0; i < len(config.Cfg.WatchFiles); i++ {
+							log.Debug("event: try to start new tail")
 							readFileAndSetTail(&(config.Cfg.WatchFiles[i]))
 							go logFileWatcher(&(config.Cfg.WatchFiles[i]))
 
@@ -138,10 +141,11 @@ func logFileWatcher(file *config.WatchFile) {
 	done := make(chan bool)
 
 	go func() {
+		log.Debug("event: log file watcher start --- ", file.ResultFile.FileName)
 		for {
 			select {
 			case <- file.Close_chan:
-				log.Debug("event: log file watcher killed")
+				log.Debug("event: log file watcher stoped --- ", file.ResultFile.FileName)
 				break
 			case event := <-watcher.Events:
 				//log.Debug("event:", event)
@@ -205,7 +209,7 @@ func readFileAndSetTail(file *config.WatchFile) {
 	}
 
 	file.ResultFile.LogTail = tail_end
-	log.Debug("event: will start tail")
+	log.Debug("event: will start tail", file.ResultFile.FileName)
 	go func() {
 		//start := time.Now().Unix()
 		for line := range tail_end.Lines {
