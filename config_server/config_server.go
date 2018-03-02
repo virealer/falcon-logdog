@@ -71,6 +71,15 @@ func Push_handler() {
 		}
 
 	})
+
+	http.HandleFunc("/alive", func(w http.ResponseWriter, req *http.Request) {
+		if req.Method == "GET" {
+			w.Write([]byte("alive"))
+		} else {
+			w.Write([]byte("GET method only"))
+		}
+	})
+
 	fmt.Println("Listen at 0.0.0.0:8008")
 	http.ListenAndServe("0.0.0.0:8008", nil)
 }
