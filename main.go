@@ -61,10 +61,10 @@ func main() {
 		for i := 0; i < len(config.Cfg.WatchFiles); i++ {
 			readFileAndSetTail(&(config.Cfg.WatchFiles[i]))
 			go logFileWatcher(&(config.Cfg.WatchFiles[i]))
-
 		}
-		ConfigFileWatcher()
 	}()
+	ConfigFileWatcher()
+	// cfg_chan = make(chan [])
 	config_server.Push_handler()
 }
 
@@ -87,9 +87,9 @@ func ConfigFileWatcher() {
 					//var err error
 					if new_config, err := config.ReadConfig(config.ConfigFile); err != nil {
 						log.Debug("ERROR: event: config has error, will not use old config", err)
-					} else if config.CheckConfig(new_config) != nil {
+					} else if config.CheckConfig(&new_config) != nil {
 						log.Debug("ERROR: event: config has error, will not use old config", err)
-					} else if config.SetLogFile(new_config) != nil {
+					} else if config.SetLogFile(&new_config) != nil {
 						log.Debug("ERROR: event: config has error, will not use old config", err)
 					} else {
 						log.Debug("event: config reload success", )
@@ -246,7 +246,7 @@ func handleKeywords(file config.WatchFile, line string) {
 				Step:        config.Cfg.Timer,
 				CounterType: "GAUGE",
 				//Tags:        "prefix=" + file.Prefix + ",suffix=" + file.Suffix + "," + p.Tag + "=" + p.FixedExp,
-				Tags:		"patn="+file.Path+",pattern="+file.FilePattern+",tag="+p.Tag,
+				Tags:		"path="+file.Path+",pattern="+file.FilePattern+",tag="+p.Tag,
 			}
 		}
 		keywords.Set(key, data)
@@ -309,7 +309,7 @@ func fillData() {
 				Step:        c.Timer,
 				CounterType: "GAUGE",
 				//Tags:        "prefix=" + v.Prefix + ",suffix=" + v.Suffix + "," + p.Tag + "=" + p.FixedExp,
-				Tags:		"patn="+v.Path+",pattern="+v.FilePattern+",tag="+p.Tag,
+				Tags:		"path="+v.Path+",pattern="+v.FilePattern+",tag="+p.Tag,
 			}
 			keywords.Set(key, data)
 		}

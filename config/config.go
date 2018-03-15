@@ -70,31 +70,33 @@ type PushData struct {
 const ConfigFile = "./cfg.json"
 
 var (
-	Cfg         *Config
+	Cfg         Config
 	fixExpRegex = regexp.MustCompile(`[\W]+`)
+	Tem_cfg		Config
 )
+
 
 func Init_config() error {
 	var err error
 
-	if Cfg, err = ReadConfig(ConfigFile); err != nil {
+	if Tem_cfg, err = ReadConfig(ConfigFile); err != nil {
 		log.Println("ERROR: ", err)
 		return err
 	}
 	log.Println("read cfg success")
 
-	if err = CheckConfig(Cfg); err != nil {
+	if err = CheckConfig(&Tem_cfg); err != nil {
 		log.Println(err)
 		return err
 	}
 	log.Println("check cfg success")
 
-	if err = SetLogFile(Cfg); err != nil {
+	if err = SetLogFile(&Tem_cfg); err != nil {
 		log.Println(err)
 		return err
 	}
 	log.Println("set cfg success")
-
+	Cfg = Tem_cfg
 	//go func() {
 	//	ConfigFileWatcher()
 	//}()
@@ -103,15 +105,17 @@ func Init_config() error {
 	return nil
 }
 
-func ReadConfig(configFile string) (*Config, error) {
+func ReadConfig(configFile string) (Config, error) {
+	var config Config
+
 	bytes, err := ioutil.ReadFile(configFile)
 	if err != nil {
-		return nil, err
+		return config, err
 	}
 
-	var config *Config
+
 	if err := json.Unmarshal(bytes, &config); err != nil {
-		return nil, err
+		return config, err
 	}
 
 	fmt.Println(config.LogLevel)
@@ -128,14 +132,13 @@ func ReadConfig(configFile string) (*Config, error) {
 // 检查配置项目是否正确
 func CheckConfig(config *Config) error {
 	var err error
-
 	//检查 host
 	if config.Host == "" {
-		if config.Host, err = os.Hostname(); err != nil {
+		if Tem_cfg.Host, err = os.Hostname(); err != nil {
 			return err
 		}
 
-		log.Println("host not set will use system's name:", config.Host)
+		log.Println("host not set will use system's name:", Tem_cfg.Host)
 
 	}
 
