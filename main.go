@@ -248,7 +248,7 @@ func handleKeywords(file config.WatchFile, line string) {
 				Step:        config.Cfg.Timer,
 				CounterType: "GAUGE",
 				//Tags:        "prefix=" + file.Prefix + ",suffix=" + file.Suffix + "," + p.Tag + "=" + p.FixedExp,
-				Tags:		"path="+file.Path+",pattern="+file.FilePattern+",tag="+p.Tag,
+				Tags:		"path="+file.Path+",filepattern="+file.FilePattern+",tag="+p.Tag,
 			}
 		}
 		keywords.Set(key, data)
@@ -311,7 +311,7 @@ func fillData() {
 				Step:        c.Timer,
 				CounterType: "GAUGE",
 				//Tags:        "prefix=" + v.Prefix + ",suffix=" + v.Suffix + "," + p.Tag + "=" + p.FixedExp,
-				Tags:		"path="+v.Path+",pattern="+v.FilePattern+",tag="+p.Tag,
+				Tags:		"path="+v.Path+",filepattern="+v.FilePattern+",tag="+p.Tag,
 			}
 			keywords.Set(key, data)
 		}

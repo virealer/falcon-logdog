@@ -134,11 +134,11 @@ func CheckConfig(config *Config) error {
 	var err error
 	//检查 host
 	if config.Host == "" {
-		if Tem_cfg.Host, err = os.Hostname(); err != nil {
+		if config.Host, err = os.Hostname(); err != nil {
 			return err
 		}
 
-		log.Println("host not set will use system's name:", Tem_cfg.Host)
+		log.Println("host not set will use system's name:", config.Host)
 
 	}
 
