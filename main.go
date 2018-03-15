@@ -63,7 +63,9 @@ func main() {
 			go logFileWatcher(&(config.Cfg.WatchFiles[i]))
 		}
 	}()
-	ConfigFileWatcher()
+	go func() {
+		ConfigFileWatcher()
+	}()
 	// cfg_chan = make(chan [])
 	config_server.Push_handler()
 }
