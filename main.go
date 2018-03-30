@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 	"encoding/json"
+	"strconv"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/hpcloud/tail"
@@ -18,6 +19,7 @@ import (
 	"./config"
 	"./log"
 	"./config_server"
+	"fmt"
 )
 
 var (
@@ -89,9 +91,9 @@ func ConfigFileWatcher() {
 					//var err error
 					if new_config, err := config.ReadConfig(config.ConfigFile); err != nil {
 						log.Debug("ERROR: event: config has error, will not use old config", err)
-					} else if config.CheckConfig(&new_config) != nil {
+					} else if config.CheckConfig(new_config) != nil {
 						log.Debug("ERROR: event: config has error, will not use old config", err)
-					} else if config.SetLogFile(&new_config) != nil {
+					} else if config.SetLogFile(new_config) != nil {
 						log.Debug("ERROR: event: config has error, will not use old config", err)
 					} else {
 						log.Debug("event: config reload success", )
@@ -213,13 +215,8 @@ func readFileAndSetTail(file *config.WatchFile) {
 	file.ResultFile.LogTail = tail_end
 	log.Debug("event: will start tail", file.ResultFile.FileName)
 	go func() {
-		//start := time.Now().Unix()
 		for line := range tail_end.Lines {
 			handleKeywords(*file, line.Text)
-			// log.Debug("log line: ", line.Text)
-			//if time.Now().Unix() - start > 10 {
-			//	handleKeywords(*file, line.Text)
-			//}
 		}
 	}()
 
@@ -228,30 +225,163 @@ func readFileAndSetTail(file *config.WatchFile) {
 // 查找关键词
 func handleKeywords(file config.WatchFile, line string) {
 	for _, p := range file.Keywords {
-		value := 0.0
-		if p.Regex.MatchString(line) {
-			// log.Debugf("exp:%v match ===> line: %v ", p.Regex.String(), line)
-			value = 1.0
-		}
-		// key := file.ResultFile.FileName + p.Tag
-		key := file.Path + file.FilePattern + p.Tag
-		var data config.PushData
-		if v, ok := keywords.Get(key); ok {
-			d := v.(config.PushData)
-			d.Value += value
-			data = d
-		} else {
-			data = config.PushData{Metric: config.Cfg.Metric,
-				Endpoint:    config.Cfg.Host,
-				Timestamp:   time.Now().Unix(),
-				Value:       value,
-				Step:        config.Cfg.Timer,
-				CounterType: "GAUGE",
-				//Tags:        "prefix=" + file.Prefix + ",suffix=" + file.Suffix + "," + p.Tag + "=" + p.FixedExp,
-				Tags:		"path="+file.Path+",filepattern="+file.FilePattern+",tag="+p.Tag,
+		switch p.Type {
+		case "count":
+			value := 0.0
+			if p.Regex.MatchString(line) {
+				// log.Debugf("exp:%v match ===> line: %v ", p.Regex.String(), line)
+				value = 1.0
+			}
+			// key := file.ResultFile.FileName + p.Tag
+			key := file.Path + file.FilePattern + p.Tag
+			var data config.PushData
+			if v, ok := keywords.Get(key); ok {
+				d := v.(config.PushData)
+				d.Value += value
+				data = d
+			} else {
+				data = config.PushData{Metric: config.Cfg.Metric,
+					Endpoint:    config.Cfg.Host,
+					Timestamp:   time.Now().Unix(),
+					Value:       value,
+					Step:        config.Cfg.Timer,
+					CounterType: "GAUGE",
+					//Tags:        "prefix=" + file.Prefix + ",suffix=" + file.Suffix + "," + p.Tag + "=" + p.FixedExp,
+					Tags:		"path="+file.Path+",filepattern="+file.FilePattern+",tag="+p.Tag,
+				}
+			}
+			keywords.Set(key, data)
+		case "min":
+			new_value_array :=  p.Regex.FindStringSubmatch(line)
+			if len(new_value_array) > 2 {
+				new_value := new_value_array[1]
+				new_value_float, err := strconv.ParseFloat(new_value, 64)
+				if err != nil {
+					log.Error("")
+					continue
+				}
+				key := file.Path + file.FilePattern + p.Tag
+				var data config.PushData
+				if v, ok := keywords.Get(key); ok {
+					d := v.(config.PushData)
+					if new_value_float < d.Value {
+						d.Value = new_value_float
+					}
+					//d.Value += value
+					data = d
+				} else {
+					data = config.PushData{Metric: config.Cfg.Metric,
+						Endpoint:    config.Cfg.Host,
+						Timestamp:   time.Now().Unix(),
+						Value:       new_value_float,
+						Step:        config.Cfg.Timer,
+						CounterType: "GAUGE",
+						//Tags:        "prefix=" + file.Prefix + ",suffix=" + file.Suffix + "," + p.Tag + "=" + p.FixedExp,
+						Tags:		"path="+file.Path+",filepattern="+file.FilePattern+",tag="+p.Tag,
+					}
+				}
+				keywords.Set(key, data)
+			} else {
+				log.Debug("no match")
+			}
+
+		case "max":
+			new_value_array :=  p.Regex.FindStringSubmatch(line)
+			if len(new_value_array) > 2 {
+				new_value := new_value_array[1]
+				new_value_float, err := strconv.ParseFloat(new_value, 64)
+				if err != nil {
+					log.Error("")
+					continue
+				}
+				key := file.Path + file.FilePattern + p.Tag
+				var data config.PushData
+				if v, ok := keywords.Get(key); ok {
+					d := v.(config.PushData)
+					if new_value_float > d.Value {
+						d.Value = new_value_float
+					}
+					//d.Value += value
+					data = d
+				} else {
+					data = config.PushData{Metric: config.Cfg.Metric,
+						Endpoint:    config.Cfg.Host,
+						Timestamp:   time.Now().Unix(),
+						Value:       new_value_float,
+						Step:        config.Cfg.Timer,
+						CounterType: "GAUGE",
+						//Tags:        "prefix=" + file.Prefix + ",suffix=" + file.Suffix + "," + p.Tag + "=" + p.FixedExp,
+						Tags:		"path="+file.Path+",filepattern="+file.FilePattern+",tag="+p.Tag,
+					}
+				}
+				keywords.Set(key, data)
+			} else {
+				log.Debug("no match")
+			}
+		case "avg":
+			new_value_array :=  p.Regex.FindStringSubmatch(line)
+			if len(new_value_array) > 2 {
+				new_value := new_value_array[1]
+				new_value_float, err := strconv.ParseFloat(new_value, 64)
+				if err != nil {
+					log.Error("")
+					continue
+				}
+				key := file.Path + file.FilePattern + p.Tag
+				var data config.PushData
+				if v, ok := keywords.Get(key); ok {
+					d := v.(config.PushData)
+					d.Value = (d.Value*float64(d.Count)+new_value_float)/(1.0+float64(d.Count))
+					d.Count += 1
+					data = d
+				} else {
+					data = config.PushData{Metric: config.Cfg.Metric,
+						Endpoint:    config.Cfg.Host,
+						Timestamp:   time.Now().Unix(),
+						Value:       new_value_float,
+						Step:        config.Cfg.Timer,
+						CounterType: "GAUGE",
+						//Tags:        "prefix=" + file.Prefix + ",suffix=" + file.Suffix + "," + p.Tag + "=" + p.FixedExp,
+						Tags:		"path="+file.Path+",filepattern="+file.FilePattern+",tag="+p.Tag,
+						Count: 1,
+					}
+				}
+				keywords.Set(key, data)
+			} else {
+				log.Debug("no match")
+			}
+		case "sum":
+			new_value_array :=  p.Regex.FindStringSubmatch(line)
+			if len(new_value_array) > 2 {
+				new_value := new_value_array[1]
+				new_value_float, err := strconv.ParseFloat(new_value, 64)
+				if err != nil {
+					log.Error("")
+					continue
+				}
+				key := file.Path + file.FilePattern + p.Tag
+				var data config.PushData
+				if v, ok := keywords.Get(key); ok {
+					d := v.(config.PushData)
+					d.Value += new_value_float
+					// d.Count += 1
+					data = d
+				} else {
+					data = config.PushData{Metric: config.Cfg.Metric,
+						Endpoint:    config.Cfg.Host,
+						Timestamp:   time.Now().Unix(),
+						Value:       new_value_float,
+						Step:        config.Cfg.Timer,
+						CounterType: "GAUGE",
+						//Tags:        "prefix=" + file.Prefix + ",suffix=" + file.Suffix + "," + p.Tag + "=" + p.FixedExp,
+						Tags:		"path="+file.Path+",filepattern="+file.FilePattern+",tag="+p.Tag,
+					}
+				}
+				keywords.Set(key, data)
+			} else {
+				log.Debug("no match")
 			}
 		}
-		keywords.Set(key, data)
 	}
 }
 

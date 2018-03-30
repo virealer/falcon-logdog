@@ -12,6 +12,7 @@ import (
 	"time"
 	"path/filepath"
 	"log"
+	"go/types"
 )
 
 type Config struct {
@@ -32,7 +33,7 @@ type resultFile struct {
 type WatchFile struct {
 	Path       string //路径
 	FilePattern  string
-	FilePatternExp *regexp.Regexp
+	FilePatternExp *regexp.Regexp `json:"-"`
 	//Prefix     string //log前缀
 	//PrefixExp  *regexp.Regexp
 	//Suffix     string //log后缀
@@ -40,13 +41,14 @@ type WatchFile struct {
 	Keywords   []keyWord
 	PathIsFile bool       //path 是否是文件
 	ResultFile resultFile `json:"-"`
-	Close_chan chan bool
+	Close_chan chan bool `json:"-"`
 }
 
 
 type keyWord struct {
 	Exp      string
 	Tag      string
+	Type     string
 	FixedExp string         `json:"-"` //替换
 	Regex    *regexp.Regexp `json:"-"`
 }
@@ -65,14 +67,15 @@ type PushData struct {
 	//GAUGE：即用户上传什么样的值，就原封不动的存储
 	//COUNTER：指标在存储和展现的时候，会被计算为speed，即（当前值 - 上次值）/ 时间间隔
 	Tags string `json:"tags"` //一组逗号分割的键值对, 对metric进一步描述和细化, 可以是空字符串. 比如idc=lg，比如service=xbox等，多个tag之间用逗号分割
+	Count int `json:"-"`  // 辅助变量  用于求平均数
 }
 
 const ConfigFile = "./cfg.json"
 
 var (
-	Cfg         Config
+	Cfg         *Config
 	fixExpRegex = regexp.MustCompile(`[\W]+`)
-	Tem_cfg		Config
+	Tem_cfg		*Config
 )
 
 
@@ -85,13 +88,13 @@ func Init_config() error {
 	}
 	log.Println("read cfg success")
 
-	if err = CheckConfig(&Tem_cfg); err != nil {
+	if err = CheckConfig(Tem_cfg); err != nil {
 		log.Println(err)
 		return err
 	}
 	log.Println("check cfg success")
 
-	if err = SetLogFile(&Tem_cfg); err != nil {
+	if err = SetLogFile(Tem_cfg); err != nil {
 		log.Println(err)
 		return err
 	}
@@ -105,16 +108,15 @@ func Init_config() error {
 	return nil
 }
 
-func ReadConfig(configFile string) (Config, error) {
-	var config Config
-
+func ReadConfig(configFile string) (*Config, error) {
+	var config *Config
+	//config = new(Config)
 	bytes, err := ioutil.ReadFile(configFile)
 	if err != nil {
 		return config, err
 	}
 
-
-	if err := json.Unmarshal(bytes, &config); err != nil {
+	if err := json.Unmarshal(bytes, config); err != nil {
 		return config, err
 	}
 
@@ -195,6 +197,12 @@ func CheckConfig(config *Config) error {
 		for _, keyword := range v.Keywords {
 			if keyword.Exp == "" || keyword.Tag == "" {
 				return errors.New("ERROR: keyword's exp and tag are requierd")
+			}
+			if keyword.Type == "" {
+				keyword.Type = "count"
+			}
+			if keyword.Type != "count" && keyword.Type != "avg" && keyword.Type != "min" && keyword.Type != "max" {
+				return errors.New("ERROR: keyword Type must in count avg min max")
 			}
 		}
 
