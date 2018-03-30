@@ -163,13 +163,14 @@ func CheckConfig(config *Config) error {
 			return errors.New("ERROR: keyword list not set")
 		}
 
-		for _, keyword := range v.Keywords {
+		for i, keyword := range v.Keywords {
 			if keyword.Exp == "" || keyword.Tag == "" {
 				return errors.New("ERROR: keyword's exp and tag are requierd")
 			}
 			if keyword.Type == "" {
-				keyword.Type = "count"
+				v.Keywords[i].Type = "count"
 			}
+			keyword.Type = v.Keywords[i].Type
 			if keyword.Type != "count" && keyword.Type != "avg" && keyword.Type != "min" && keyword.Type != "max" {
 				return errors.New("ERROR: keyword Type must in count avg min max")
 			}
