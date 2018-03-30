@@ -262,7 +262,6 @@ func handleKeywords(file config.WatchFile, line string) {
 			} else {
 				log.Debug("no match")
 			}
-
 		case "max":
 			new_value_array :=  p.Regex.FindStringSubmatch(line)
 			if len(new_value_array) > 2 {
@@ -364,9 +363,11 @@ func postData() {
 
 	go func() {
 		if len(keywords.Items()) != 0 {
-			data := make([]config.PushData, 0, 20)
+			data := make([]config.PushData, 0, 3000)
 			for k, v := range keywords.Items() {
-				data = append(data, v.(config.PushData))
+				tem_data := v.(config.PushData)
+				tem_data.Timestamp = time.Now().Unix()
+				data = append(data, tem_data)
 				keywords.Remove(k)
 			}
 

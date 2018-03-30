@@ -15,10 +15,10 @@ import (
 )
 
 type Config struct {
-	Metric     string      //度量名称,比如log.console 或者log
-	Timer      int         // 每隔多长时间（秒）上报
-	Host       string      //主机名称
-	Agent      string      //agent api url
+	Metric     string      `json:"metric"` //度量名称,比如log.console 或者log
+	Timer      int         `json:"timer"` // 每隔多长时间（秒）上报
+	Host       string      `json:"host"` //主机名称
+	Agent      string      `json:"agent"` //agent api url
 	WatchFiles []WatchFile `json:"files"`
 	LogLevel   string
 }
@@ -30,10 +30,10 @@ type resultFile struct {
 }
 
 type WatchFile struct {
-	Path       string //路径
-	FilePattern  string
+	Path       string 	`json:"path"`//路径
+	FilePattern  string		`json:"filepattern"`
 	FilePatternExp *regexp.Regexp `json:"-"`
-	Keywords   []keyWord
+	Keywords   []keyWord	`json:"keywords"`
 	PathIsFile bool       //path 是否是文件
 	ResultFile resultFile `json:"-"`
 	Close_chan chan bool `json:"-"`
@@ -41,9 +41,9 @@ type WatchFile struct {
 
 
 type keyWord struct {
-	Exp      string
-	Tag      string
-	Type     string
+	Exp      string		`json:"exp"`
+	Tag      string		`json:"tag"`
+	Type     string		`json:"type"`
 	FixedExp string         `json:"-"` //替换
 	Regex    *regexp.Regexp `json:"-"`
 }
@@ -96,7 +96,7 @@ func Init_config() error {
 	log.Println("set cfg success")
 	Cfg = Tem_cfg
 
-	fmt.Println("INFO: config:", Cfg)
+	fmt.Printf("INFO: config: %+v", *Cfg)
 	return nil
 }
 
