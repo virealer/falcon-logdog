@@ -12,7 +12,6 @@ import (
 	"time"
 	"path/filepath"
 	"log"
-	"go/types"
 )
 
 type Config struct {
@@ -34,10 +33,6 @@ type WatchFile struct {
 	Path       string //路径
 	FilePattern  string
 	FilePatternExp *regexp.Regexp `json:"-"`
-	//Prefix     string //log前缀
-	//PrefixExp  *regexp.Regexp
-	//Suffix     string //log后缀
-	//SuffixExp  *regexp.Regexp
 	Keywords   []keyWord
 	PathIsFile bool       //path 是否是文件
 	ResultFile resultFile `json:"-"`
@@ -100,9 +95,6 @@ func Init_config() error {
 	}
 	log.Println("set cfg success")
 	Cfg = Tem_cfg
-	//go func() {
-	//	ConfigFileWatcher()
-	//}()
 
 	fmt.Println("INFO: config:", Cfg)
 	return nil
@@ -116,16 +108,11 @@ func ReadConfig(configFile string) (*Config, error) {
 		return config, err
 	}
 
-	if err := json.Unmarshal(bytes, config); err != nil {
+	if err := json.Unmarshal(bytes, &config); err != nil {
 		return config, err
 	}
 
 	fmt.Println(config.LogLevel)
-
-	// 检查配置项目
-	//if err := checkConfig(config); err != nil {
-	//	return nil, err
-	//}
 
 	log.Println("config init success, start to work ...")
 	return config, nil
@@ -170,24 +157,6 @@ func CheckConfig(config *Config) error {
 		if config.WatchFiles[i].FilePatternExp, err = regexp.Compile(config.WatchFiles[i].FilePattern); err != nil {
 			return err
 		}
-		//config.WatchFiles[i].Prefix = strings.TrimSpace(v.Prefix)
-		//if config.WatchFiles[i].Prefix == "" {
-		//	log.Println("file pre ", config.WatchFiles[i].Path, "prefix is no set, will use \\.*")
-		//	config.WatchFiles[i].Prefix = "\\.*"
-		//}
-		//if config.WatchFiles[i].PrefixExp, err = regexp.Compile(config.WatchFiles[i].Prefix); err != nil {
-		//	return err
-		//}
-		//config.WatchFiles[i].Suffix = strings.TrimSpace(v.Suffix)
-		//if config.WatchFiles[i].Suffix == "" {
-		//	log.Println("file pre ", config.WatchFiles[i].Path, "suffix is no set, will use \\.*")
-		//	config.WatchFiles[i].Suffix = "\\.*"
-		//}
-		//if config.WatchFiles[i].SuffixExp, err = regexp.Compile(config.WatchFiles[i].Suffix); err != nil {
-		//	return err
-		//}
-
-		//agent不检查,可能后启动agent
 
 		//检查keywords
 		if len(v.Keywords) == 0 {
@@ -242,8 +211,6 @@ func SetLogFile(c *Config) error {
 				return err
 			}
 
-			// log.Println("path", path, "prefix:", v.Prefix, "suffix:", v.Suffix, "base:", filepath.Base(path), "isFile", !info.IsDir())
-			// if strings.HasPrefix(filepath.Base(path), v.Prefix) && strings.HasSuffix(path, v.Suffix) && !info.IsDir() {
 			if v.FilePatternExp.MatchString(filepath.Base(path)) && !info.IsDir() {
 				if c.WatchFiles[i].ResultFile.FileName == "" || info.ModTime().After(c.WatchFiles[i].ResultFile.ModTime) {
 					c.WatchFiles[i].ResultFile.FileName = path

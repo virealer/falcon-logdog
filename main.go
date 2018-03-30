@@ -19,20 +19,17 @@ import (
 	"./config"
 	"./log"
 	"./config_server"
-	"fmt"
 )
 
 var (
 	workers  chan bool
 	keywords cmap.ConcurrentMap
-	//start bool  // 启动后丢弃第一次的数据
 )
 
 func main() {
 	if err := config.Init_config(); err != nil {
 		return
 	}
-	//start = true
 	workers = make(chan bool, runtime.NumCPU()*2)
 	keywords = cmap.New()
 	runtime.GOMAXPROCS(runtime.NumCPU())
@@ -45,15 +42,6 @@ func main() {
 					old_tick = config.Cfg.Timer
 					break
 				}
-				//if start == true {
-				//	for k := range keywords.Items() {
-				//		keywords.Remove(k)
-				//	}
-				//	start = false
-				//} else {
-				//	fillData()
-				//	postData()
-				//}
 				fillData()
 				postData()
 			}
@@ -68,7 +56,6 @@ func main() {
 	go func() {
 		ConfigFileWatcher()
 	}()
-	// cfg_chan = make(chan [])
 	config_server.Push_handler()
 }
 
@@ -84,11 +71,9 @@ func ConfigFileWatcher() {
 		for {
 			select {
 			case event := <-watcher.Events:
-				//log.Debug("event name:", event.Name, event.Op, config.ConfigFile)
 				if event.Name == config.ConfigFile && event.Op == fsnotify.Write {
 					log.Debug("event : modified config file", event.Name, "will reaload config", event.Op)
 					old_cfg := config.Cfg
-					//var err error
 					if new_config, err := config.ReadConfig(config.ConfigFile); err != nil {
 						log.Debug("ERROR: event: config has error, will not use old config", err)
 					} else if config.CheckConfig(new_config) != nil {
@@ -152,8 +137,6 @@ func logFileWatcher(file *config.WatchFile) {
 				log.Debug("event: log file watcher stoped --- ", file.ResultFile.FileName)
 				break
 			case event := <-watcher.Events:
-				//log.Debug("event:", event)
-
 				if file.PathIsFile && event.Op == fsnotify.Create && event.Name == file.Path {
 					log.Info("continue to watch file:", event.Name)
 					if file.ResultFile.LogTail != nil {
@@ -229,10 +212,8 @@ func handleKeywords(file config.WatchFile, line string) {
 		case "count":
 			value := 0.0
 			if p.Regex.MatchString(line) {
-				// log.Debugf("exp:%v match ===> line: %v ", p.Regex.String(), line)
 				value = 1.0
 			}
-			// key := file.ResultFile.FileName + p.Tag
 			key := file.Path + file.FilePattern + p.Tag
 			var data config.PushData
 			if v, ok := keywords.Get(key); ok {
@@ -246,7 +227,6 @@ func handleKeywords(file config.WatchFile, line string) {
 					Value:       value,
 					Step:        config.Cfg.Timer,
 					CounterType: "GAUGE",
-					//Tags:        "prefix=" + file.Prefix + ",suffix=" + file.Suffix + "," + p.Tag + "=" + p.FixedExp,
 					Tags:		"path="+file.Path+",filepattern="+file.FilePattern+",tag="+p.Tag,
 				}
 			}
@@ -267,7 +247,6 @@ func handleKeywords(file config.WatchFile, line string) {
 					if new_value_float < d.Value {
 						d.Value = new_value_float
 					}
-					//d.Value += value
 					data = d
 				} else {
 					data = config.PushData{Metric: config.Cfg.Metric,
@@ -276,7 +255,6 @@ func handleKeywords(file config.WatchFile, line string) {
 						Value:       new_value_float,
 						Step:        config.Cfg.Timer,
 						CounterType: "GAUGE",
-						//Tags:        "prefix=" + file.Prefix + ",suffix=" + file.Suffix + "," + p.Tag + "=" + p.FixedExp,
 						Tags:		"path="+file.Path+",filepattern="+file.FilePattern+",tag="+p.Tag,
 					}
 				}
@@ -301,7 +279,6 @@ func handleKeywords(file config.WatchFile, line string) {
 					if new_value_float > d.Value {
 						d.Value = new_value_float
 					}
-					//d.Value += value
 					data = d
 				} else {
 					data = config.PushData{Metric: config.Cfg.Metric,
@@ -310,7 +287,6 @@ func handleKeywords(file config.WatchFile, line string) {
 						Value:       new_value_float,
 						Step:        config.Cfg.Timer,
 						CounterType: "GAUGE",
-						//Tags:        "prefix=" + file.Prefix + ",suffix=" + file.Suffix + "," + p.Tag + "=" + p.FixedExp,
 						Tags:		"path="+file.Path+",filepattern="+file.FilePattern+",tag="+p.Tag,
 					}
 				}
@@ -341,7 +317,6 @@ func handleKeywords(file config.WatchFile, line string) {
 						Value:       new_value_float,
 						Step:        config.Cfg.Timer,
 						CounterType: "GAUGE",
-						//Tags:        "prefix=" + file.Prefix + ",suffix=" + file.Suffix + "," + p.Tag + "=" + p.FixedExp,
 						Tags:		"path="+file.Path+",filepattern="+file.FilePattern+",tag="+p.Tag,
 						Count: 1,
 					}
@@ -364,7 +339,6 @@ func handleKeywords(file config.WatchFile, line string) {
 				if v, ok := keywords.Get(key); ok {
 					d := v.(config.PushData)
 					d.Value += new_value_float
-					// d.Count += 1
 					data = d
 				} else {
 					data = config.PushData{Metric: config.Cfg.Metric,
@@ -373,7 +347,6 @@ func handleKeywords(file config.WatchFile, line string) {
 						Value:       new_value_float,
 						Step:        config.Cfg.Timer,
 						CounterType: "GAUGE",
-						//Tags:        "prefix=" + file.Prefix + ",suffix=" + file.Suffix + "," + p.Tag + "=" + p.FixedExp,
 						Tags:		"path="+file.Path+",filepattern="+file.FilePattern+",tag="+p.Tag,
 					}
 				}
@@ -424,11 +397,7 @@ func fillData() {
 	c := config.Cfg
 	for _, v := range c.WatchFiles {
 		for _, p := range v.Keywords {
-
-			//key := v.ResultFile.FileName + p.Tag
 			key := v.Path + v.FilePattern + p.Tag
-			//log.Println("_______", key)
-			// key := p.Exp
 			if _, ok := keywords.Get(key); ok {
 				continue
 			}
@@ -440,7 +409,6 @@ func fillData() {
 				Value:       0.0,
 				Step:        c.Timer,
 				CounterType: "GAUGE",
-				//Tags:        "prefix=" + v.Prefix + ",suffix=" + v.Suffix + "," + p.Tag + "=" + p.FixedExp,
 				Tags:		"path="+v.Path+",filepattern="+v.FilePattern+",tag="+p.Tag,
 			}
 			keywords.Set(key, data)
