@@ -233,7 +233,7 @@ func handleKeywords(file config.WatchFile, line string) {
 			keywords.Set(key, data)
 		case "min":
 			new_value_array :=  p.Regex.FindStringSubmatch(line)
-			if len(new_value_array) > 2 {
+			if len(new_value_array) > 1 {
 				new_value := new_value_array[1]
 				new_value_float, err := strconv.ParseFloat(new_value, 64)
 				if err != nil {
@@ -264,7 +264,7 @@ func handleKeywords(file config.WatchFile, line string) {
 			}
 		case "max":
 			new_value_array :=  p.Regex.FindStringSubmatch(line)
-			if len(new_value_array) > 2 {
+			if len(new_value_array) > 1 {
 				new_value := new_value_array[1]
 				new_value_float, err := strconv.ParseFloat(new_value, 64)
 				if err != nil {
@@ -295,7 +295,7 @@ func handleKeywords(file config.WatchFile, line string) {
 			}
 		case "avg":
 			new_value_array :=  p.Regex.FindStringSubmatch(line)
-			if len(new_value_array) > 2 {
+			if len(new_value_array) > 1 {
 				new_value := new_value_array[1]
 				new_value_float, err := strconv.ParseFloat(new_value, 64)
 				if err != nil {
@@ -326,7 +326,7 @@ func handleKeywords(file config.WatchFile, line string) {
 			}
 		case "sum":
 			new_value_array :=  p.Regex.FindStringSubmatch(line)
-			if len(new_value_array) > 2 {
+			if len(new_value_array) > 1 {
 				new_value := new_value_array[1]
 				new_value_float, err := strconv.ParseFloat(new_value, 64)
 				if err != nil {

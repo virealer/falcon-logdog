@@ -171,7 +171,7 @@ func CheckConfig(config *Config) error {
 				v.Keywords[i].Type = "count"
 			}
 			keyword.Type = v.Keywords[i].Type
-			if keyword.Type != "count" && keyword.Type != "avg" && keyword.Type != "min" && keyword.Type != "max" {
+			if keyword.Type != "count" && keyword.Type != "avg" && keyword.Type != "min" && keyword.Type != "max" && keyword.Type != "sum" {
 				return errors.New("ERROR: keyword Type must in count avg min max")
 			}
 		}
